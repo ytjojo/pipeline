@@ -1,7 +1,6 @@
 package com.jiulongteng.pipeline;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 
@@ -15,38 +14,23 @@ import java.util.concurrent.ThreadFactory;
  */
 public class PipeLineConfig {
 
-    private int mCoreThreadNum = -1 ;
+    private int mCoreThreadNum = -1;
     private ThreadFactory mThreadFactory;
-    private ExecutorService mExecutorService;
+
     private Executor mExecutor;
-    /**
-     * 和主线程保持一直
-     */
-    private int mThreadPriority = Thread.NORM_PRIORITY;
 
-    public int getCoreThreadNum() {
-        return mCoreThreadNum;
-    }
+    private MainThreadExecutor mainThreadExecutor;
+    private boolean keepTaskInstance = false;
 
-    public void setCoreThreadNum(int mCoreThreadNum) {
-        this.mCoreThreadNum = mCoreThreadNum;
-    }
+    private IPipeLineMonitor mIPipeLineMonitor;
 
-    public ThreadFactory getThreadFactory() {
-        return mThreadFactory;
-    }
+
 
     public void setThreadFactory(ThreadFactory mThreadFactory) {
         this.mThreadFactory = mThreadFactory;
     }
 
-    public ExecutorService getExecutorService() {
-        return mExecutorService;
-    }
 
-    public void setExecutorService(ExecutorService mExecutorService) {
-        this.mExecutorService = mExecutorService;
-    }
 
     public Executor getExecutor() {
         return mExecutor;
@@ -56,7 +40,73 @@ public class PipeLineConfig {
         this.mExecutor = mExecutor;
     }
 
-    public int  getPriority(){
-        return mThreadPriority;
+
+
+    public IPipeLineMonitor getPipeLineMonitor() {
+        return mIPipeLineMonitor;
+    }
+
+    public MainThreadExecutor getMainThreadExecutor() {
+        return mainThreadExecutor;
+    }
+
+    public void setKeepTaskInstance(boolean keepTaskInstance) {
+        this.keepTaskInstance = keepTaskInstance;
+    }
+
+    public void setPipeLineMonitor(IPipeLineMonitor IPipeLineMonitor) {
+        mIPipeLineMonitor = IPipeLineMonitor;
+    }
+
+    public void setMainThreadExecutor(MainThreadExecutor mainThreadExecutor) {
+        this.mainThreadExecutor = mainThreadExecutor;
+    }
+
+
+    public static class Builder {
+        PipeLineConfig mConfig;
+
+        public Builder() {
+            mConfig = new PipeLineConfig();
+
+        }
+
+
+
+        public Builder setThreadFactory(ThreadFactory mThreadFactory) {
+            mConfig.setThreadFactory(mThreadFactory);
+            return this;
+        }
+
+
+
+
+        public Builder setExecutor(Executor mExecutor) {
+            mConfig.setExecutor(mExecutor);
+            return this;
+        }
+
+        public Builder setPipeLineMonitor(IPipeLineMonitor pipeLineMonitor){
+            mConfig.setPipeLineMonitor(pipeLineMonitor);
+            return this;
+        }
+
+
+        public Builder setKeepTaskInstance(boolean keepTaskInstance) {
+            mConfig.setKeepTaskInstance(keepTaskInstance);
+            return this;
+        }
+
+        public Builder setMainThreadExecutor(MainThreadExecutor mainThreadExecutor) {
+            mConfig.setMainThreadExecutor(mainThreadExecutor);
+            return this;
+        }
+
+
+        public PipeLineConfig build(){
+            return mConfig;
+        }
+
+
     }
 }

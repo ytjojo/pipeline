@@ -1,5 +1,8 @@
 package com.jiulongteng.pipeline.graph;
 
+import com.jiulongteng.pipeline.task.AbstractTaskAction;
+import com.jiulongteng.pipeline.task.ITaskAction;
+
 import java.util.LinkedHashSet;
 
 /**
@@ -12,14 +15,14 @@ import java.util.LinkedHashSet;
  * @updateRemark:
  * @see {@link }
  */
-public class Stage extends AbstractTaskAction{
+public class Stage extends AbstractTaskAction {
 
     public Stage(String name){
         this(name,false);
     }
 
     public Stage(String name, boolean isAutoCallComplete) {
-        super(name, false);
+        super(name, DISPATCHER_MAIN,false);
     }
     private String mStagePreTaskName;
     private String mStageCompleteTaskName;
@@ -29,6 +32,8 @@ public class Stage extends AbstractTaskAction{
     public void run() {
 
     }
+
+    
 
     public boolean onAttach(String taskName){
        return mAllStageTaskName.add(taskName);

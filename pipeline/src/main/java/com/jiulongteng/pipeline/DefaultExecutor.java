@@ -6,7 +6,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -19,13 +18,20 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultExecutor implements Executor {
 
-    private static final int DEFAULT_CORE_POOL_SIZE = Runtime.getRuntime().availableProcessors() + 1;
+    private static final int DEFAULT_CORE_POOL_SIZE = 2 * Runtime.getRuntime().availableProcessors() + 1;
     private ThreadFactory mThreadFactory;
+
+    private int mConfigCoreSize = DEFAULT_CORE_POOL_SIZE;
     private ExecutorService mExecutorService;
 
+    /**
+     * 和主线程保持一致
+     */
+    private int mThreadPriority = Thread.NORM_PRIORITY;
 
-    public DefaultExecutor(ThreadFactory threadFactory) {
-        this.mThreadFactory = threadFactory;
+
+    public DefaultExecutor() {
+        initExecutorService();
     }
 
 
@@ -44,11 +50,8 @@ public class DefaultExecutor implements Executor {
     }
 
     private ExecutorService getDefaultExecutor() {
-        int configCoreSize = PipeLine.getInstance().getPipeLineConfig().getCoreThreadNum();
-        if(configCoreSize <= 0){
-            configCoreSize = DEFAULT_CORE_POOL_SIZE;
-        }
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(0, configCoreSize,
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(0, mConfigCoreSize,
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(),
                 getThreadFactory());
@@ -59,24 +62,28 @@ public class DefaultExecutor implements Executor {
 
     private ThreadFactory getThreadFactory() {
         if (mThreadFactory == null) {
-            return getDefaultThreadFactory();
+            mThreadFactory = getDefaultThreadFactory();
         }
         return mThreadFactory;
     }
 
     private ThreadFactory getDefaultThreadFactory() {
         ThreadFactory defaultFactory = new ThreadFactory() {
-            private final AtomicLong mCount = new AtomicLong(1);
+            private final AtomicLong index = new AtomicLong(1);
 
             public Thread newThread(Runnable r) {
-                Thread thread = new Thread(r, "PipeLine Thread #" + mCount.getAndIncrement());
+                Thread thread = new Thread(r, "PipeLine Thread #" + index.getAndIncrement());
                 thread.setDaemon(true);
-                thread.setPriority(PipeLine.getInstance().getPipeLineConfig().getPriority());
+                thread.setPriority(getPriority());
                 return thread;
             }
         };
 
         return defaultFactory;
+    }
+
+    private int getPriority() {
+        return mThreadPriority;
     }
 
 }

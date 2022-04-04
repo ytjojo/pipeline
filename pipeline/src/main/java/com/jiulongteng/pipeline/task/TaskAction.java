@@ -1,4 +1,4 @@
-package com.jiulongteng.pipeline.graph;
+package com.jiulongteng.pipeline.task;
 
 /**
  * @des:
@@ -13,8 +13,8 @@ package com.jiulongteng.pipeline.graph;
 public class TaskAction extends AbstractTaskAction{
 
 
-    public TaskAction(String name, boolean isAutoCallComplete) {
-        super(name, isAutoCallComplete);
+    public TaskAction(String name,int dispatcherType, boolean isAutoCallComplete) {
+        super(name,dispatcherType, isAutoCallComplete);
     }
 
     @Override

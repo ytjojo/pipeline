@@ -1,11 +1,9 @@
-package com.jiulongteng.pipeline.graph;
-
-import android.os.Looper;
-import android.os.SystemClock;
+package com.jiulongteng.pipeline.task;
 
 import com.jiulongteng.pipeline.PipeLine;
+import com.jiulongteng.pipeline.dispatcher.ITaskDispatcher;
+import com.jiulongteng.pipeline.graph.Stage;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 
 
@@ -19,18 +17,16 @@ import java.util.LinkedList;
  * @updateRemark:
  * @see {@link }
  */
-public abstract class AbstractTaskAction implements ITaskAction{
+public abstract class AbstractTaskAction implements ITaskAction {
 
 
-
-
-    private int mThreadPriority = PipeLine.getInstance().getPipeLineConfig().getPriority();
+//    private int mThreadPriority = PipeLine.getInstance().getPipeLineConfig().getPriority();
 
     /**
      * 任务调度执行任务的线程类型
      * 默认后台线程
      */
-    private int mDispatcherType = DISPATCHER_MAIN;
+    private int mDispatcherType = DISPATCHER_MAIN | DISPATCHER_ENQUEUE;
 
     private volatile byte mTaskState;
 
@@ -50,10 +46,16 @@ public abstract class AbstractTaskAction implements ITaskAction{
 
     private boolean isAutoCallComplete;
 
-    public AbstractTaskAction(String name,boolean isAutoCallComplete){
+    public AbstractTaskAction(String name, int dispatcherType, boolean isAutoCallComplete) {
+        this.mName = name;
+        this.mDispatcherType = dispatcherType;
+        this.isAutoCallComplete = isAutoCallComplete;
+    }
+    public AbstractTaskAction(String name, boolean isAutoCallComplete) {
         this.mName = name;
         this.isAutoCallComplete = isAutoCallComplete;
     }
+
     @Override
     public String getTaskName() {
         return mName;
@@ -61,7 +63,7 @@ public abstract class AbstractTaskAction implements ITaskAction{
 
     @Override
     public void addTaskListener(TaskListener taskListener) {
-        if(mTaskListeners == null){
+        if (mTaskListeners == null) {
             mTaskListeners = new LinkedList<>();
         }
         mTaskListeners.add(taskListener);
@@ -95,8 +97,49 @@ public abstract class AbstractTaskAction implements ITaskAction{
         setState(STATE_PENDING);
         PipeLine.getInstance().getPipeLineMonitor().onTaskCommit(this);
         onTaskCommit();
+        dispatchOnCommit();
         startInternal();
         return true;
+    }
+
+    private void dispatchOnCommit() {
+        if (mTaskListeners != null) {
+            for (TaskListener listener : mTaskListeners) {
+                listener.onTaskCommit(this);
+            }
+        }
+    }
+
+    private void dispatchOnStarted() {
+        if (mTaskListeners != null) {
+            for (TaskListener listener : mTaskListeners) {
+                listener.onStart(this);
+            }
+        }
+    }
+
+    private void dispatchOnCompleted() {
+        if (mTaskListeners != null) {
+            for (TaskListener l : mTaskListeners) {
+                l.onCompleted(this);
+            }
+        }
+    }
+
+    private void dispatchOnSuccess() {
+        if (mTaskListeners != null) {
+            for (TaskListener l : mTaskListeners) {
+                l.onSuccess(this);
+            }
+        }
+    }
+
+    private void dispatchOnFail() {
+        if (mTaskListeners != null) {
+            for (TaskListener l : mTaskListeners) {
+                l.onFail(this);
+            }
+        }
     }
 
     private void startInternal() {
@@ -105,16 +148,16 @@ public abstract class AbstractTaskAction implements ITaskAction{
         Runnable execRunnable = new Runnable() {
             @Override
             public void run() {
-                //TODO
-                if(Looper.getMainLooper() != Looper.myLooper()){
-                    android.os.Process.setThreadPriority(mThreadPriority);
-                }
+//                //TODO
+//                if(Looper.getMainLooper() != Looper.myLooper()){
+//                    android.os.Process.setThreadPriority(mThreadPriority);
+//                }
 
 
                 setState(STATE_RUNNING);
                 onTaskStarted();
                 PipeLine.getInstance().getPipeLineMonitor().onTaskStart(AbstractTaskAction.this);
-                mStartTime = SystemClock.elapsedRealtime();
+                mStartTime = now();
                 if (mInternalRunnable != null) {
                     mInternalRunnable.run();
                 }
@@ -125,21 +168,43 @@ public abstract class AbstractTaskAction implements ITaskAction{
                 }
             }
         };
-        if (mDispatcherType == DISPATCHER_UNCONFINED) {
-            execRunnable.run();
-        } else if (mDispatcherType == DISPATCHER_IO) {
-            PipeLine.getInstance().runOnBackground(execRunnable);
-        } else {
-            if (Looper.getMainLooper() == Looper.myLooper()) {
+        if ((mDispatcherType & DISPATCHER_UNCONFINED) == DISPATCHER_UNCONFINED) {
+            if((mDispatcherType & DISPATCHER_ENQUEUE) == DISPATCHER_ENQUEUE){
+                if(PipeLine.getInstance().getMainThreadExecutor().isMainThread()){
+                   PipeLine.getInstance().runOnUiThread(execRunnable);
+                }else {
+                    PipeLine.getInstance().runOnBackground(execRunnable);
+                }
+            }else {
                 execRunnable.run();
-            } else {
+            }
+        } else if ((mDispatcherType & DISPATCHER_IO) == DISPATCHER_IO) {
+            PipeLine.getInstance().runOnBackground(execRunnable);
+//            if((mDispatcherType & DISPATCHER_ENQUEUE) == DISPATCHER_ENQUEUE){
+//                PipeLine.getInstance().runOnBackground(execRunnable);
+//            }else {
+//                if(PipeLine.getInstance().getMainThreadExecutor().isMainThread()){
+//                    PipeLine.getInstance().runOnBackground(execRunnable);
+//                }else {
+//                    execRunnable.run();
+//                }
+//            }
+        } else {
+            if((mDispatcherType & DISPATCHER_ENQUEUE) == DISPATCHER_ENQUEUE){
                 PipeLine.getInstance().runOnUiThread(execRunnable);
+            }else {
+                if(PipeLine.getInstance().getMainThreadExecutor().isMainThread()){
+                    execRunnable.run();
+                }else {
+                    PipeLine.getInstance().runOnUiThread(execRunnable);
+                }
             }
         }
     }
 
-
-
+    private long now() {
+        return System.currentTimeMillis();
+    }
 
 
     private boolean startSiblings() {
@@ -156,7 +221,8 @@ public abstract class AbstractTaskAction implements ITaskAction{
     protected void onTaskCommit() {
 
     }
-    protected void onTaskStarted(){
+
+    protected void onTaskStarted() {
 
     }
 
@@ -175,26 +241,19 @@ public abstract class AbstractTaskAction implements ITaskAction{
     public int getDispatcherType() {
         return mDispatcherType;
     }
+
     @Override
     public void setSuccess() {
         mTaskState |= STATE_SUCCESS;
         setCompleted();
-        if (mTaskListeners != null) {
-            for (TaskListener l : mTaskListeners) {
-                l.onSuccess(this);
-            }
-        }
+        dispatchOnSuccess();
     }
 
     @Override
     public void setFail() {
         mTaskState |= STATE_FAIL;
         setCompleted();
-        if (mTaskListeners != null) {
-            for (TaskListener l : mTaskListeners) {
-                l.onFail(this);
-            }
-        }
+        dispatchOnFail();
     }
 
     @Override
@@ -203,20 +262,18 @@ public abstract class AbstractTaskAction implements ITaskAction{
         performComplete();
     }
 
-    private void performComplete(){
-        long finishTime = SystemClock.elapsedRealtime();
+    private void performComplete() {
+        long finishTime = now();
         PipeLine.getInstance().getPipeLineMonitor().record(getTaskName(), finishTime - mStartTime);
-        mTaskDispatcher.startNext(this);
         PipeLine.getInstance().getPipeLineMonitor().onTaskCompleted(this);
         onCompleted();
-        if (mTaskListeners != null) {
-            for (TaskListener l : mTaskListeners) {
-                l.onCompleted(this);
-            }
-        }
+        dispatchOnCompleted();
+        PipeLine.getInstance().getTaskDispatcher().startNext(this);
+
+
     }
 
-    protected  void onCompleted(){
+    protected void onCompleted() {
 
     }
 
@@ -230,11 +287,11 @@ public abstract class AbstractTaskAction implements ITaskAction{
         return isAutoCallComplete;
     }
 
-    public boolean isTaskCommit(){
+    public boolean isTaskCommit() {
         return (mTaskState & STATE_PENDING) != 0;
     }
 
-    private void setState(int state){
+    private void setState(int state) {
         mTaskState |= state;
     }
 }

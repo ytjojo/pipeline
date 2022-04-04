@@ -1,7 +1,7 @@
 package com.jiulongteng.pipeline.graph;
 
-import java.util.LinkedList;
-import java.util.TreeSet;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @des:
@@ -15,30 +15,30 @@ import java.util.TreeSet;
  */
 public class ConditionGraphNode <V> extends GraphNode<V>{
 
-    private TreeSet<GraphNode<V>> successNextNodes;
-    private TreeSet<GraphNode<V>> failNextNodes;
+    private Set<GraphNode<V>> successNextNodes;
+    private Set<GraphNode<V>> failNextNodes;
     public ConditionGraphNode(V value) {
         super(value);
     }
 
     public boolean addSuccessNextNodes(GraphNode<V> next) {
         if(successNextNodes ==null){
-            successNextNodes = new TreeSet<>();
+            successNextNodes = new HashSet<>();
         }
         return successNextNodes.add(next);
     }
 
     public boolean addFailNextNodes(GraphNode<V> next) {
         if(failNextNodes ==null){
-            failNextNodes = new TreeSet<>();
+            failNextNodes = new HashSet<>();
         }
         return failNextNodes.add(next);
     }
-    public TreeSet<GraphNode<V>> getSuccessNextNodes() {
+    public Set<GraphNode<V>> getSuccessNextNodes() {
         return successNextNodes;
     }
 
-    public TreeSet<GraphNode<V>> getFailNextNodes() {
+    public Set<GraphNode<V>> getFailNextNodes() {
         return failNextNodes;
     }
 }

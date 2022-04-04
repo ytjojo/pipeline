@@ -1,4 +1,6 @@
-package com.jiulongteng.pipeline.graph;
+package com.jiulongteng.pipeline.dispatcher;
+
+import com.jiulongteng.pipeline.task.ITaskAction;
 
 /**
  * @des:
@@ -15,5 +17,7 @@ public interface ITaskDispatcher {
 
     void startNext(ITaskAction triggerTask);
 
-    void startBoost();
+    void startBooster();
+
+    boolean isBoosterStarted();
 }

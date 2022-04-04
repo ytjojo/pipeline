@@ -2,17 +2,12 @@ package com.jiulongteng.pipeline;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.text.TextUtils;
-
-import com.jiulongteng.pipeline.graph.DefaultTaskDispatcher;
-import com.jiulongteng.pipeline.graph.ITaskDispatcher;
-import com.jiulongteng.pipeline.graph.TaskCenter;
+import com.jiulongteng.pipeline.dispatcher.DefaultTaskDispatcher;
+import com.jiulongteng.pipeline.task.ITaskAction;
+import com.jiulongteng.pipeline.dispatcher.ITaskDispatcher;
+import com.jiulongteng.pipeline.task.ITaskFactory;
+import com.jiulongteng.pipeline.task.TaskCenter;
 import com.jiulongteng.pipeline.graph.TaskGraph;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 
 /**
@@ -26,12 +21,12 @@ import java.util.concurrent.Executor;
 public class PipeLine {
     private static PipeLine sPipeLine;
 
-    private Handler mMainHandler;
+    private MainThreadExecutor mMainThreadExecutor;
 
     private Executor mExecutor;
     private PipeLineConfig mPipeLineConfig;
 
-    private PipeLineMonitor mPipeLineMonitor;
+    private IPipeLineMonitor mPipeLineMonitor;
 
     private TaskGraph mTaskGraph;
 
@@ -39,10 +34,41 @@ public class PipeLine {
     private TaskCenter mTaskCenter;
 
     private PipeLine() {
-        mMainHandler = new Handler(Looper.getMainLooper());
         mTaskCenter = new TaskCenter();
         mTaskGraph = new TaskGraph();
         mTaskDispatcher = new DefaultTaskDispatcher(mTaskCenter, mTaskGraph);
+    }
+
+    public void config(PipeLineConfig pipeLineConfig) {
+        this.mPipeLineConfig = pipeLineConfig;
+        this.mExecutor = mPipeLineConfig.getExecutor();
+        this.mMainThreadExecutor = mPipeLineConfig.getMainThreadExecutor();
+        this.mPipeLineMonitor = mPipeLineConfig.getPipeLineMonitor();
+        checkInit();
+
+    }
+
+    private void checkInit() {
+        if (mMainThreadExecutor == null) {
+            mMainThreadExecutor = new MainThreadExecutor() {
+                @Override
+                public boolean isMainThread() {
+                    return Looper.getMainLooper() == Looper.myLooper();
+                }
+
+                Handler mHandler = new Handler(Looper.getMainLooper());
+
+                @Override
+                public void execute(Runnable runnable) {
+                    mHandler.post(runnable);
+                }
+            };
+        }
+
+        if (mExecutor == null) {
+            mExecutor = new DefaultExecutor();
+        }
+
     }
 
     public static PipeLine getInstance() {
@@ -56,33 +82,23 @@ public class PipeLine {
         return sPipeLine;
     }
 
-    public void setPipeLineConfig(PipeLineConfig pipeLineConfig) {
-        this.mPipeLineConfig = pipeLineConfig;
-    }
 
-    public void setExecutor(Executor executor) {
-        this.mExecutor = executor;
-    }
-
-
-    public Handler getMainHandler() {
-        return mMainHandler;
-    }
 
     public void runOnUiThread(Runnable runnable) {
-        mMainHandler.post(runnable);
+        mMainThreadExecutor.execute(runnable);
     }
 
     public void runOnBackground(Runnable runnable) {
         if (mExecutor == null) {
-            mExecutor = new DefaultExecutor(getPipeLineConfig().getThreadFactory());
+            mExecutor = new DefaultExecutor();
         }
         mExecutor.execute(runnable);
     }
 
 
     public void start() {
-        mTaskDispatcher.startBoost();
+        checkInit();
+        mTaskDispatcher.startBooster();
     }
 
 
@@ -91,11 +107,8 @@ public class PipeLine {
     }
 
 
-    public void setPipeLineMonitor(PipeLineMonitor monitor) {
-        this.mPipeLineMonitor = monitor;
-    }
 
-    public PipeLineMonitor getPipeLineMonitor() {
+    public IPipeLineMonitor getPipeLineMonitor() {
         if (mPipeLineMonitor == null) {
             mPipeLineMonitor = new PipeLineMonitor();
         }
@@ -110,63 +123,37 @@ public class PipeLine {
         return mTaskCenter;
     }
 
-    //    public static class Deployer {
-//        Stage currentStage;
-//
-//        public Deployer(Stage stage) {
-//            currentStage = stage;
-//        }
-//
-//        public Deployer after(String stageName) {
-//            Stage target = PipeLine.getInstance().getStage(stageName);
-//
-//            currentStage.addParentTask(target);
-//            target.addCompleteChildTask(currentStage);
-//            final int deep = target.mDeep + 1;
-//            if(currentStage.mDeep < deep){
-//                currentStage.mDeep = deep;
-//            }
-//            return this;
-//
-//        }
-//
-//        public Deployer with(String stageName) {
-//            Stage target = PipeLine.getInstance().getStage(stageName);
-//            SiblingsTaskHolder holder = target.getSiblingsTaskHolder();
-//            if (holder == null) {
-//                holder = new SiblingsTaskHolder();
-//                holder.mSiblingsTasks = new ArrayList<>();
-//            }
-//            if (!holder.mSiblingsTasks.contains(target)) {
-//                holder.mSiblingsTasks.add(target);
-//            }
-//            if (!holder.mSiblingsTasks.contains(currentStage)) {
-//                holder.mSiblingsTasks.add(currentStage);
-//            }
-//            currentStage.setSiblingsTask(holder);
-//            currentStage.mDeep = target.mDeep;
-//            return this;
-//        }
-//
-//        public Deployer afterOnce(String stageName) {
-//            Stage target = PipeLine.getInstance().getStage(stageName);
-//            currentStage.addOnceOrParentTask(target);
-//            target.addCompleteChildTask(currentStage);
-//            final int deep = target.mDeep + 1;
-//            if(currentStage.mDeep < deep){
-//                currentStage.mDeep = deep;
-//            }
-//            return this;
-//        }
-//        public Deployer deploy(){
-//            PipeLine.getInstance().addStageInternal(currentStage);
-//            return this;
-//        }
-//
-//
-//    }
-//    public static Deployer getDeployer(Stage stage){
-//        return new Deployer(stage);
-//    }
+    public MainThreadExecutor getMainThreadExecutor() {
+        return mMainThreadExecutor;
+    }
+
+    public ITaskDispatcher getTaskDispatcher() {
+        return mTaskDispatcher;
+    }
+
+
+    public PipeLine putTaskFactor(String group, ITaskFactory factory){
+        getTaskCenter().putFactory(group,factory);
+        getTaskCenter().notifyTaskFactoryAdded(factory);
+        return this;
+    }
+
+    public PipeLine putTaskFactory(String taskName,ITaskFactory factory){
+        getTaskCenter().putFactory(taskName,factory);
+        getTaskCenter().notifyTaskFactoryAdded(factory);
+        return this;
+    }
+
+    public PipeLine addTaskFactory(ITaskFactory factory){
+        getTaskCenter().addTaskFactory(factory);
+        getTaskCenter().notifyTaskFactoryAdded(factory);
+        return this;
+    }
+
+    public PipeLine addTask(ITaskAction taskAction){
+        getTaskCenter().addTaskAction(taskAction);
+        getTaskCenter().notifyTaskAdded(taskAction);
+        return this;
+    }
 
 }

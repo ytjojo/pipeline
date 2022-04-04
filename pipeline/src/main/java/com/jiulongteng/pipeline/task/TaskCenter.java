@@ -1,4 +1,4 @@
-package com.jiulongteng.pipeline.graph;
+package com.jiulongteng.pipeline.task;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -35,27 +35,35 @@ public class TaskCenter {
         this.mTaskCenterListener = listener;
     }
 
+
+    public void addTaskAction(ITaskAction taskAction){
+        taskTable.put(taskAction.getTaskName(),taskAction);
+
+    }
     public void putFactory(String group,ITaskFactory factory){
         if(mFactoriesMap == null){
             mFactoriesMap = new HashMap<>();
         }
         mFactoriesMap.put(group,factory);
-        if(mTaskCenterListener != null){
-            mTaskCenterListener.onFactoryAdded(factory);
-        }
+
     }
 
-    public void addTaskAction(ITaskAction taskAction){
-        taskTable.put(taskAction.getTaskName(),taskAction);
-        if(mTaskCenterListener != null){
-            mTaskCenterListener.onTaskAdded(taskAction);
-        }
-    }
+
     public void addTaskFactory(ITaskFactory factory){
         if(mTaskFactories == null){
             mTaskFactories = new LinkedList<>();
         }
         mTaskFactories.add(factory);
+
+    }
+
+    public void notifyTaskAdded(ITaskAction taskAction){
+        if(mTaskCenterListener != null){
+            mTaskCenterListener.onTaskAdded(taskAction);
+        }
+    }
+
+    public void notifyTaskFactoryAdded(ITaskFactory factory){
         if(mTaskCenterListener != null){
             mTaskCenterListener.onFactoryAdded(factory);
         }
@@ -100,7 +108,7 @@ public class TaskCenter {
 
 
     public void addTaskListener(String taskName,ITaskAction.TaskListener taskListener) {
-        if(mTaskCenterListener == null){
+        if(mTaskListenerMap == null){
             mTaskListenerMap = new ConcurrentHashMap<>();
         }
         LinkedList<ITaskAction.TaskListener> taskListeners = mTaskListenerMap.get(taskName);
@@ -112,7 +120,7 @@ public class TaskCenter {
     }
 
     public void removeTaskListener(String taskName,ITaskAction.TaskListener taskListener) {
-        if(mTaskCenterListener == null){
+        if(mTaskListenerMap == null){
            return;
         }
         LinkedList<ITaskAction.TaskListener> taskListeners = mTaskListenerMap.get(taskName);

@@ -1,4 +1,6 @@
-package com.jiulongteng.pipeline.graph;
+package com.jiulongteng.pipeline.task;
+
+import com.jiulongteng.pipeline.graph.Stage;
 
 /**
  * @des:
@@ -15,47 +17,54 @@ public interface ITaskAction extends Runnable{
     /**
      * {@code Task}执行状态，{@code ITaskAction}尚未执行
      */
-    public static final byte STATE_IDLE = 0;
+    byte STATE_IDLE = 0;
 
     /**
      * {@code Task}执行状态，{@code ITaskAction}等待执行
      */
-    public static final byte STATE_PENDING= 1;
+    byte STATE_PENDING= 1;
 
 
     /**
      * {@code Task}执行状态，{@code ITaskAction}正在执行中
      */
-    public static final byte STATE_RUNNING = 2;
+    byte STATE_RUNNING = 2;
 
     /**
      * {@code Task}执行状态，{@code ITaskAction}已经执行完毕
      */
-    public static final byte STATE_SUCCESS = 4;
+    byte STATE_SUCCESS = 4;
     /**
      * {@code Task}执行状态，{@code ITaskAction}已经执行完毕
      */
-    public static final byte STATE_FAIL= 8;
+    byte STATE_FAIL= 8;
 
     /**
      * {@code Task}执行状态，{@code ITaskAction}已经执行完毕
      */
-    public static final byte STATE_COMPLETED = 16;
+    byte STATE_COMPLETED = 16;
 
     /**
      * {@code Task}执行状态，{@code Task} 运行时被手动跳过
      */
-    public static final byte STATE_SKIP = 32;
+    byte STATE_SKIP = 32;
 
-    public static final int DISPATCHER_IO = 0;
+    int DISPATCHER_ENQUEUE = 1;
 
-    public static final int DISPATCHER_MAIN = 1;
+    int DISPATCHER_MAIN = 2;
 
-    public static final int DISPATCHER_UNCONFINED = 2;
+    int DISPATCHER_IO = 4 ;
+
+    int DISPATCHER_IO_ENQUEUE = DISPATCHER_IO | DISPATCHER_ENQUEUE;
+
+
+    int DISPATCHER_UNCONFINED = 8;
+
+
 
     String getTaskName();
 
-    public void addTaskListener(TaskListener taskListener);
+    void addTaskListener(TaskListener taskListener);
     void onAttachPipeLine(Stage stage) ;
 
     public void setDispatcherType(int dispatcherType);
@@ -74,19 +83,12 @@ public interface ITaskAction extends Runnable{
     boolean autoCallComplete();
 
 
-    public static class TaskListener {
-        public void onStart(ITaskAction task) {
-        }
-
-        public void onCompleted(ITaskAction task) {
-        }
-
-        public void onSuccess(ITaskAction task) {
-        }
-
-        public void onFail(ITaskAction task) {
-        }
-
+   interface TaskListener {
+        public void onStart(ITaskAction task);
+       public void onTaskCommit(ITaskAction task);
+        public void onCompleted(ITaskAction task);
+        public void onSuccess(ITaskAction task) ;
+        public void onFail(ITaskAction task) ;
     }
 
 

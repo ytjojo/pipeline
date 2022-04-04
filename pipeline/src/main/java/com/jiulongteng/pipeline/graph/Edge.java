@@ -33,4 +33,12 @@ public class Edge<V> {
     public int hashCode() {
         return Objects.hash(from, to);
     }
+
+    @Override
+    public String toString() {
+        return "Edge{" +
+                "from=" + from.getValue().toString() +
+                ", to=" + to.getValue().toString() +
+                '}';
+    }
 }
